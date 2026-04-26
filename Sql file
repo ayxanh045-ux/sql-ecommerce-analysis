@@ -1,0 +1,103 @@
+SELECT 
+    o.order_id,
+    o.customer_id,
+    o.order_purchase_timestamp,
+    c.customer_state,
+    p.payment_value
+FROM
+    olist_orders_dataset o
+        JOIN
+    olist_customers_dataset c ON o.customer_id = c.customer_id
+        JOIN
+    olist_order_payments_dataset p ON o.order_id = p.order_id;
+    
+-- Total revenue --
+SELECT 
+    SUM(payment_value)
+FROM
+    olist_order_payments_dataset;-- 16008872.11998764 --
+
+SELECT 
+    COUNT(*)
+FROM
+    olist_order_items_dataset;-- 112650 --
+
+SELECT 
+    SUM(payment_value) / COUNT(DISTINCT order_id) AS avg_order_value
+FROM
+    olist_order_payments_dataset;-- 160.9 --
+
+
+SELECT 
+    DATE_FORMAT(order_purchase_timestamp, '%Y-%m') AS month,
+    ROUND(SUM(payment_value), 2) AS revenue
+FROM
+    olist_order_payments_dataset p
+        JOIN
+    olist_orders_dataset o ON o.order_id = p.order_id
+GROUP BY month
+ORDER BY month;
+
+-- Top customers by total spending --
+SELECT 
+    c.customer_unique_id,
+    ROUND(SUM(p.payment_value), 2) AS revenue
+FROM
+    olist_orders_dataset o
+        JOIN
+    olist_order_payments_dataset p ON o.order_id = p.order_id
+        JOIN
+    olist_customers_dataset c ON c.customer_id = o.customer_id
+GROUP BY customer_unique_id
+ORDER BY revenue DESC
+LIMIT 10;
+
+-- Find customers who made more than 1 order --
+
+SELECT 
+    customer_unique_id
+FROM
+    olist_customers_dataset c
+        JOIN
+    olist_orders_dataset o ON c.customer_id = o.customer_id
+GROUP BY c.customer_unique_id
+HAVING COUNT(o.order_id) > 1;
+-- Repeat Customer Rate (%) --
+SELECT 
+    ROUND((SELECT 
+                    COUNT(*)
+                FROM
+                    (SELECT 
+                        c.customer_unique_id
+                    FROM
+                        olist_customers_dataset c
+                    JOIN olist_orders_dataset o ON c.customer_id = o.customer_id
+                    GROUP BY c.customer_unique_id
+                    HAVING COUNT(o.order_id) > 1) AS repeat_customers) / (SELECT 
+                    COUNT(DISTINCT customer_unique_id)
+                FROM
+                    olist_customers_dataset) * 100,
+            2) AS repeat_customer_rate;
+
+-- Top Products by Sales (quantity) --
+Select product_id , Count(order_item_id) as count from olist_order_items_dataset
+group by product_id
+order by count desc
+limit 10;
+
+-- Top Products by Revenue --
+
+Select product_id , ROUND(Sum(price),2) as revenue from olist_order_items_dataset
+group by product_id
+order by revenue desc
+limit 10;
+
+-- Revenue by product category --
+
+Select ROUND(SUM(o.price),2) as revenue, p.product_category_name from olist_order_items_dataset o
+join olist_products_dataset p on o.product_id = p.product_id
+Group by p.product_category_name 
+order by revenue desc
+Limit 10;
+
+
